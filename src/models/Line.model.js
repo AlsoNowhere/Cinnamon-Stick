@@ -1,4 +1,4 @@
-import { getDistance } from "../services/get-distance.service";
+import { getDistance3D } from "../services/get-distance.service";
 
 export const Line = function(
     start,
@@ -22,7 +22,7 @@ export const Line = function(
 
     this.parametric = {x, y, z};
 
-    this.distance = getDistance(start, end);
+    this.distance = getDistance3D(start, end);
 
     this.colour = options.colour;
 
