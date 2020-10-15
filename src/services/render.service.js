@@ -1,17 +1,16 @@
 
 import { getPlaneFromThreePoints } from "./get-plane-from-three-points.service";
-import { getPlaneLineIntersection } from "./get-plane-line-intersect.service";
+
+import { manipulatePoint } from "./manipulate-point.service";
 
 import { Point } from "../models/Point.model";
+import { Line } from "../models/Line.model";
+import { Polygon } from "../models/Polygon.model";
 import { RenderPoint } from "../models/RenderPoint.model";
 
 import { RADIANS } from "../data/RADIANS.data";
-import { isPointOnLine } from "./is-point-on-line.service";
-import { Line } from "../models/Line.model";
 
 export const render = function(){
-
-
 
     const topPlane = getPlaneFromThreePoints(
         new Point(0,0,0),
@@ -34,135 +33,121 @@ export const render = function(){
         new Point(-Math.tan(this.aperture.zx / RADIANS) * 10,10,10),
     );
 
-    const points = this.points.map(point => {
-        const dimensions = this.getDimenstions(point);
+    const points = this.points
+        .map(point => {
+            return manipulatePoint(this.centre, this.direction, point);
+        })
+        .map(point => {
+            const dimensions = this.getDimensions(point);
 
-        if (dimensions === null) {
-            return null;
-        }
-
-        const {width, height} = dimensions;
-
-        return new RenderPoint(
-            width,
-            height
-        );
-    })
-    .filter(point => point !== null);
-
-    const lines = this.lines.map(line => {
-        let startDimensions = this.getDimenstions(line.start);
-        let endDimensions = this.getDimenstions(line.end);
-
-        const topIntersect = getPlaneLineIntersection(topPlane, line);
-        const rightIntersect = getPlaneLineIntersection(rightPlane, line);
-        const bottomIntersect = getPlaneLineIntersection(bottomPlane, line);
-        const leftIntersect = getPlaneLineIntersection(leftPlane, line);
-
-        const isTopIntersectValid = topIntersect.valid
-            && isPointOnLine(topIntersect, new Line(
-                new Point(-Math.tan(this.aperture.zx / RADIANS) * topIntersect.z, topIntersect.y, topIntersect.z),
-                new Point(Math.tan(this.aperture.zx / RADIANS) * topIntersect.z, topIntersect.y, topIntersect.z)
-            ))
-            && isPointOnLine(topIntersect, line);
-        const isRightIntersectValid = rightIntersect.valid
-            && isPointOnLine(rightIntersect, new Line(
-                new Point(rightIntersect.x, -Math.tan(this.aperture.y / RADIANS) * rightIntersect.z, rightIntersect.z),
-                new Point(rightIntersect.x, Math.tan(this.aperture.y / RADIANS) * rightIntersect.z, rightIntersect.z)
-            ))
-            && isPointOnLine(rightIntersect, line);
-        const isBottomIntersectValid = bottomIntersect.valid
-            && isPointOnLine(bottomIntersect, new Line(
-                new Point(-Math.tan(this.aperture.zx / RADIANS) * bottomIntersect.z, bottomIntersect.y, bottomIntersect.z),
-                new Point(Math.tan(this.aperture.zx / RADIANS) * bottomIntersect.z, bottomIntersect.y, bottomIntersect.z)
-            ))
-            && isPointOnLine(bottomIntersect, line);
-        const isLeftIntersectValid = leftIntersect.valid
-            && isPointOnLine(leftIntersect, new Line(
-                new Point(leftIntersect.x, -Math.tan(this.aperture.y / RADIANS) * leftIntersect.z, leftIntersect.z),
-                new Point(leftIntersect.x, Math.tan(this.aperture.y / RADIANS) * leftIntersect.z, leftIntersect.z)
-            ))
-            && isPointOnLine(leftIntersect, line);
-
-        const validPlaneIntersects = [
-            [topIntersect, isTopIntersectValid],
-            [rightIntersect, isRightIntersectValid],
-            [bottomIntersect, isBottomIntersectValid],
-            [leftIntersect, isLeftIntersectValid]
-        ].reduce((a, b) => {
-            const [intersect, valid] = b;
-            if (valid) {
-                a.push(intersect);
-            }
-            return a;
-        }, []);
-
-        // console.log("Dig: ", validPlaneIntersects,
-
-        //     topIntersect,
-        //     rightIntersect,
-        //     bottomIntersect,
-        //     leftIntersect,
-
-        //     isTopIntersectValid,
-        //     isRightIntersectValid,
-        //     isBottomIntersectValid,
-        //     isLeftIntersectValid,
-
-        // );
-
-        if (startDimensions === null
-            && endDimensions === null) {
-
-            if (validPlaneIntersects.length === 2) {
-                const dimensionsStart = this.getDimenstions(validPlaneIntersects[0]);
-                const dimensionsEnd = this.getDimenstions(validPlaneIntersects[1]);
-                startDimensions = dimensionsStart;
-                endDimensions = dimensionsEnd;
-            }
-            else {
+            if (dimensions === null) {
                 return null;
             }
 
-        }
+            const {width, height} = dimensions;
 
-        if (endDimensions === null) {
-            if (validPlaneIntersects.length === 1) {
-                const dimensions = this.getDimenstions(validPlaneIntersects[0]);
-                endDimensions = dimensions;
-            }
-            else {
+            if (isNaN(width) || isNaN(height)) {
                 return null;
             }
-        }
 
-        if (startDimensions === null) {
-            if (validPlaneIntersects.length === 1) {
-                const dimensions = this.getDimenstions(validPlaneIntersects[0]);
-                startDimensions = dimensions;
-            }
-            else {
+            return new RenderPoint(
+                width,
+                height
+            );
+        })
+        .filter(point => point !== null);
+
+    const lines = this.lines
+        .map(line => {
+            return new Line(
+                manipulatePoint(this.centre, this.direction, line.start),
+                manipulatePoint(this.centre, this.direction, line.end),
+                { colour: line.colour }
+            );
+        })
+        .map(line => {
+            
+            const lineDimensions = this.getLineDimensions(line, topPlane, rightPlane, bottomPlane, leftPlane);
+
+            if (lineDimensions === null) {
                 return null;
             }
-        }
 
+            const { startDimensions, endDimensions } = lineDimensions;
 
-        const {width: startWidth, height: startHeight} = startDimensions;
-        const {width: endWidth, height: endHeight} = endDimensions;
+            const {width: startWidth, height: startHeight} = startDimensions;
+            const {width: endWidth, height: endHeight} = endDimensions;
 
-        return {
-            startWidth,
-            startHeight,
-            endWidth,
-            endHeight,
-            colour: line.colour
-        };
-    })
-    .filter(line => line !== null);
+            return {
+                startWidth,
+                startHeight,
+                endWidth,
+                endHeight,
+                colour: line.colour
+            };
+        })
+        .filter(line => line !== null);
+
+    const polygons = this.polygons
+        .map(polygon => {
+            return new Polygon(
+                polygon.points.map(x => manipulatePoint(this.centre, this.direction, x)),
+                { colour: polygon.colour }
+            );
+        })
+        .map(polygon => {
+
+            const newPoints = [];
+
+            polygon.points.forEach((point, index) => {
+                const nextPoint = polygon.points[index === (polygon.points.length - 1) ? 0 : (index + 1)];
+
+                const line = new Line(point, nextPoint);
+            
+                const lineDimensions = this.getLineDimensions(line, topPlane, rightPlane, bottomPlane, leftPlane);
+
+                if (lineDimensions === null) {
+                    return;
+                }
+
+                const { 
+                    startDimensions, 
+                    endDimensions,
+                metaData } = lineDimensions;
+
+                const {width: startWidth, height: startHeight} = startDimensions;
+                const {width: endWidth, height: endHeight} = endDimensions;
+
+                if (metaData.start || metaData.both) {
+                    newPoints.push(
+                        {
+                            width: startWidth,
+                            height: startHeight
+                        }
+                    );
+                }
+                newPoints.push(
+                    {
+                        width: endWidth,
+                        height: endHeight
+                    }
+                );
+            });
+
+            if (newPoints.length < 3) {
+                return null;
+            }
+
+            return {
+                points: newPoints,
+                colour: polygon.colour
+            }
+        })
+        .filter(polygon => polygon !== null);
 
     return {
         points,
-        lines
+        lines,
+        polygons
     };
-
 }
