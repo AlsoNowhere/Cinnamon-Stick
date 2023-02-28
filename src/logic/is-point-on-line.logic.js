@@ -10,7 +10,7 @@
     The above would return false.
 */
 
-import { getDistance3D } from "./get-distance.service"
+import { getDistance3D } from "./get-distance.logic"
 
 export const isPointOnLine = (point, line) => {
     const distanceToStart = getDistance3D(point, line.start);

@@ -1,6 +1,5 @@
 
-import { getPlaneFromThreePoints } from "./get-plane-from-three-points.service";
-
+import { getPlaneFromThreePoints } from "../logic/get-plane-from-three-points.logic";
 import { manipulatePoint } from "./manipulate-point.service";
 
 import { Point } from "../models/Point.model";
@@ -12,26 +11,27 @@ import { RADIANS } from "../data/RADIANS.data";
 
 export const render = function(){
 
-    const topPlane = getPlaneFromThreePoints(
+    const topViewPlane = getPlaneFromThreePoints(
         new Point(0,0,0),
         new Point(0,Math.tan(this.aperture.y / RADIANS) * 10,10),
         new Point(10,Math.tan(this.aperture.y / RADIANS) * 10,10),
     );
-    const rightPlane = getPlaneFromThreePoints(
+    const rightViewPlane = getPlaneFromThreePoints(
         new Point(0,0,0),
         new Point(Math.tan(this.aperture.zx / RADIANS) * 10,0,10),
         new Point(Math.tan(this.aperture.zx / RADIANS) * 10,10,10),
     );
-    const bottomPlane = getPlaneFromThreePoints(
+    const bottomViewPlane = getPlaneFromThreePoints(
         new Point(0,0,0),
         new Point(0,-Math.tan(this.aperture.y / RADIANS) * 10,10),
         new Point(10,-Math.tan(this.aperture.y / RADIANS) * 10,10),
     );
-    const leftPlane = getPlaneFromThreePoints(
+    const leftViewPlane = getPlaneFromThreePoints(
         new Point(0,0,0),
         new Point(-Math.tan(this.aperture.zx / RADIANS) * 10,0,10),
         new Point(-Math.tan(this.aperture.zx / RADIANS) * 10,10,10),
     );
+    const planes = { topViewPlane, rightViewPlane, bottomViewPlane, leftViewPlane };
 
     const points = this.points
         .map(point => {
@@ -67,7 +67,15 @@ export const render = function(){
         })
         .map(line => {
             
-            const lineDimensions = this.getLineDimensions(line, topPlane, rightPlane, bottomPlane, leftPlane);
+
+/*
+    GET POINTS FOR LINE
+    This method returns calculated points from two points.
+    If it returns null it's because not only do both points provided line outside of the view but they also don't cross in front of the view.
+    If the points lie outside of the view or cross it this method will return the points on the edge of the view where the line goes out and or the point if it is inside the view.
+    That way when we get the dimensions here we merely need to put the line on the screen if not null, we don't need to work anything else out.
+*/
+            const lineDimensions = this.getLineDimensions(line, topViewPlane, rightViewPlane, bottomViewPlane, leftViewPlane);
 
             if (lineDimensions === null) {
                 return null;
@@ -75,8 +83,8 @@ export const render = function(){
 
             const { startDimensions, endDimensions } = lineDimensions;
 
-            const {width: startWidth, height: startHeight} = startDimensions;
-            const {width: endWidth, height: endHeight} = endDimensions;
+            const { width: startWidth, height: startHeight } = startDimensions;
+            const { width: endWidth, height: endHeight } = endDimensions;
 
             return {
                 startWidth,
@@ -97,53 +105,88 @@ export const render = function(){
         })
         .map(polygon => {
 
-            const newPoints = [];
+            const points = [];
+            // let previousLineDimensions = null;
+            // let firstLineDimensions = null;
 
             polygon.points.forEach((point, index) => {
+
                 const nextPoint = polygon.points[index === (polygon.points.length - 1) ? 0 : (index + 1)];
-
                 const line = new Line(point, nextPoint);
-            
-                const lineDimensions = this.getLineDimensions(line, topPlane, rightPlane, bottomPlane, leftPlane);
 
-                if (lineDimensions === null) {
-                    return;
-                }
 
-                const { 
-                    startDimensions, 
-                    endDimensions,
-                metaData } = lineDimensions;
 
-                const {width: startWidth, height: startHeight} = startDimensions;
-                const {width: endWidth, height: endHeight} = endDimensions;
+                this.resolvePolygonPoints(points, line, planes);
 
-                if (metaData.start || metaData.both) {
-                    newPoints.push(
-                        {
-                            width: startWidth,
-                            height: startHeight
-                        }
-                    );
-                }
-                newPoints.push(
-                    {
-                        width: endWidth,
-                        height: endHeight
-                    }
-                );
+                // const lineDimensions = this.getLineDimensions(line, topViewPlane, rightViewPlane, bottomViewPlane, leftViewPlane);
+
+                // console.log("lineDimensions: ", lineDimensions, "point ", point, "nextPoint", nextPoint);
+
+                // if (lineDimensions === null) {
+                //     this.addPointsAtEdgeOfView(newPoints, line, rightViewPlane, leftViewPlane);
+                //     return;
+                // }
+
+                // const { startDimensions, endDimensions, metaData } = lineDimensions;
+                // const { width: startWidth, height: startHeight } = startDimensions;
+                // const { width: endWidth, height: endHeight } = endDimensions;
+
+                // console.log("Decide: ",
+                //     startDimensions,
+                //     endDimensions,
+                //     "|",
+                //     metaData,
+                //     "|",
+                //     point,
+                //     nextPoint
+                // );
+
+                // previousLineDimensions && this.getCorners(
+                //     newPoints,
+                //     lineDimensions,
+                //     previousLineDimensions
+                // );
+
+                // if (metaData.start || metaData.both) {
+                //     newPoints.push(
+                //         {
+                //             width: startWidth,
+                //             height: startHeight
+                //         }
+                //     );
+                // }
+                // newPoints.push(
+                //     {
+                //         width: endWidth,
+                //         height: endHeight
+                //     }
+                // );
+                // previousLineDimensions = lineDimensions;
+                // if (index === 0 || firstLineDimensions === null) {
+                //     firstLineDimensions = lineDimensions;
+                // }
             });
 
-            if (newPoints.length < 3) {
+            // this.getCorners(
+            //     newPoints,
+            //     firstLineDimensions,
+            //     previousLineDimensions
+            // );
+
+
+            // console.log("NewPoints: ", points);
+
+            if (points.length < 3) {
                 return null;
             }
 
             return {
-                points: newPoints,
+                points,
                 colour: polygon.colour
             }
         })
         .filter(polygon => polygon !== null);
+
 
     return {
         points,

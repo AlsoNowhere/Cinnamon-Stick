@@ -1,4 +1,5 @@
-import { getDistance3D } from "../services/get-distance.service";
+
+import { getDistance3D } from "../logic/get-distance.logic";
 
 export const Line = function(
     start,
