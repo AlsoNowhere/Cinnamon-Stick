@@ -1,12 +1,20 @@
 
 import { logger } from "sage-library";
 
-import { render } from "./services/render.service";
-import { generateAperture } from "./services/generate-aperture.service";
-import { getDimensions } from "./services/get-dimensions.service";
-import { getLineDimensions } from "./services/get-line-dimensions.service";
+import { render as render1 } from "./services/render.service";
+import { render as render2 } from "./services/render2.service";
+import { render as render3 } from "./services/render3.service";
+
+import { generateAperture } from "./logic/generate-aperture.logic";
+import { getDimensions } from "./logic/get-dimensions.logic";
+import { getLineDimensions } from "./logic/get-line-dimensions.logic";
+import { addPointsAtEdgeOfView } from "./logic/add-points-at-edge-of-view.logic";
+import { getCorners } from "./logic/get-corners.logic";
+import { resolvePolygonPoints } from "./logic/resolve-polygon-points.logic";
 
 import { Setup } from "./models/Setup.model";
+
+const renders = [render1, render2, render3];
 
 export const CinnamonStick = function(
     target,
@@ -29,16 +37,18 @@ export const CinnamonStick = function(
     this.centre = setup.centre;
     this.direction = setup.direction;
     this.aperture = generateAperture(setup.aperture, this.width, this.height);
+    this.render = renders[setup.renderer - 1];
 
     this.points = [];
     this.lines = [];
     this.polygons = [];
-
-    this.render = render;
 }
 CinnamonStick.prototype = {
     getDimensions,
-    getLineDimensions
+    getLineDimensions,
+    addPointsAtEdgeOfView,
+    getCorners,
+    resolvePolygonPoints
 }
 
 export { Point } from "./models/Point.model";

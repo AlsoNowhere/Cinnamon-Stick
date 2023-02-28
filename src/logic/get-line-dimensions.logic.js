@@ -1,65 +1,79 @@
 
-import { getPlaneLineIntersection } from "./get-plane-line-intersect.service";
-import { isPointOnLine } from "./is-point-on-line.service";
+import { getPlaneLineIntersection } from "./get-plane-line-intersect.logic";
+import { isPointOnLine } from "./is-point-on-line.logic";
 
 import { Point } from "../models/Point.model";
 import { Line } from "../models/Line.model";
 
 import { RADIANS } from "../data/RADIANS.data";
 
-export const getLineDimensions = function(line, topPlane, rightPlane, bottomPlane, leftPlane) {
+export const getLineDimensions = function(
+    line,
+    topViewPlane,
+    rightViewPlane,
+    bottomViewPlane,
+    leftViewPlane
+) {
 
     let startDimensions = this.getDimensions(line.start);
     let endDimensions = this.getDimensions(line.end);
 
-    const topIntersect = getPlaneLineIntersection(topPlane, line);
-    const rightIntersect = getPlaneLineIntersection(rightPlane, line);
-    const bottomIntersect = getPlaneLineIntersection(bottomPlane, line);
-    const leftIntersect = getPlaneLineIntersection(leftPlane, line);
+    // console.log("Start end: ", startDimensions, endDimensions);
+
+    const topIntersect = getPlaneLineIntersection(topViewPlane, line);
+    const rightIntersect = getPlaneLineIntersection(rightViewPlane, line);
+    const bottomIntersect = getPlaneLineIntersection(bottomViewPlane, line);
+    const leftIntersect = getPlaneLineIntersection(leftViewPlane, line);
 
     const isTopIntersectValid = topIntersect.valid
         && isPointOnLine(topIntersect, new Line(
             new Point(-Math.tan(this.aperture.zx / RADIANS) * topIntersect.z, topIntersect.y, topIntersect.z),
             new Point(Math.tan(this.aperture.zx / RADIANS) * topIntersect.z, topIntersect.y, topIntersect.z)
         ))
-        && isPointOnLine(topIntersect, line);
+        && isPointOnLine(topIntersect, line)
+        && topIntersect.z >= 0;
     const isRightIntersectValid = rightIntersect.valid
         && isPointOnLine(rightIntersect, new Line(
             new Point(rightIntersect.x, -Math.tan(this.aperture.y / RADIANS) * rightIntersect.z, rightIntersect.z),
             new Point(rightIntersect.x, Math.tan(this.aperture.y / RADIANS) * rightIntersect.z, rightIntersect.z)
         ))
-        && isPointOnLine(rightIntersect, line);
+        && isPointOnLine(rightIntersect, line)
+        && rightIntersect.z >= 0;
     const isBottomIntersectValid = bottomIntersect.valid
         && isPointOnLine(bottomIntersect, new Line(
             new Point(-Math.tan(this.aperture.zx / RADIANS) * bottomIntersect.z, bottomIntersect.y, bottomIntersect.z),
             new Point(Math.tan(this.aperture.zx / RADIANS) * bottomIntersect.z, bottomIntersect.y, bottomIntersect.z)
         ))
-        && isPointOnLine(bottomIntersect, line);
+        && isPointOnLine(bottomIntersect, line)
+        && bottomIntersect.z >= 0;
     const isLeftIntersectValid = leftIntersect.valid
         && isPointOnLine(leftIntersect, new Line(
             new Point(leftIntersect.x, -Math.tan(this.aperture.y / RADIANS) * leftIntersect.z, leftIntersect.z),
             new Point(leftIntersect.x, Math.tan(this.aperture.y / RADIANS) * leftIntersect.z, leftIntersect.z)
         ))
-        && isPointOnLine(leftIntersect, line);
+        && isPointOnLine(leftIntersect, line)
+        && leftIntersect.z >= 0;
 
-    const validPlaneIntersects = [
-        [topIntersect, isTopIntersectValid],
-        [rightIntersect, isRightIntersectValid],
-        [bottomIntersect, isBottomIntersectValid],
-        [leftIntersect, isLeftIntersectValid]
-    ].reduce((a, b) => {
-        const [intersect, valid] = b;
+    const { validPlaneIntersects, intersects } = [
+        [topIntersect, isTopIntersectValid, "top"],
+        [rightIntersect, isRightIntersectValid, "right"],
+        [bottomIntersect, isBottomIntersectValid, "bottom"],
+        [leftIntersect, isLeftIntersectValid, "left"]
+    ].reduce((a, [intersect, valid, label]) => {
         if (valid) {
-            a.push(intersect);
+            a.validPlaneIntersects.push(intersect);
+            a.intersects.push(label);
         }
         return a;
-    }, []);
+    }, { validPlaneIntersects: [], intersects: [] });
 
     const metaData = {
         both: false,
         start: false,
         end: false
     };
+
+    // console.log("Focus on right: ", validPlaneIntersects, intersects, leftIntersect);
 
     if (startDimensions === null
         && endDimensions === null) {
